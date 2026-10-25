@@ -1,0 +1,7 @@
+1 & every trainable shape printed and P = 128V + 103680 & \code{Q6.1}, \code{D.2} & pass \\
+2 & embedding output and residual block input dimensions & \code{Q6.2} & pass \\
+3 & causal attention output feeds the first residual sum & \code{Q6.3} & pass \\
+4 & masked weights \textasciitilde{} 0, attention rows sum to one & \code{Q6.4}, \code{Q6.5} & pass \\
+5 & non-zero finite gradients for W\_E and W\_P & \code{Q3.5} & pass \\
+6 & logits BT x V, finite loss, initial loss vs log V & \code{Q6.6}, \code{Q6.7} & pass \\
+7 & loss plot, 200-character sample, parameter count, run instructions & \code{B4.1}, \code{Q5.6}, \code{Q6.1} & pass \\

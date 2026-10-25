@@ -1,0 +1,38 @@
+prompt: 'ROMEO: '
+
+[categorical sampling, tau = 1, 200 characters]
+ROMEO: I dead.
+
+EDWARD:
+To God by
+Mlooy'd that will prithee, the heieves.
+
+LEONTES:
+Did not, as nothing prevail.
+
+DUCHESS OF YORK:
+That a did asseless'd, I cannot thee honest though upon of the man
+Cause me,
+
+[greedy, for contrast]
+ROMEO: the sea, that we have the seen that will not be the world to the sea,
+And the seat of the sea, and the sea,
+And the seater of the stand of the stand of the stand of the stand of the stand of the stand
+
+[optional tau = 0.5]
+ROMEO: O, for he did your hand.
+
+ANGELO:
+So be the strong that the way with one:
+And he she did shame and him to means,
+When th
+
+[optional tau = 2.0]
+ROMEO: Go,
+EXEN EDWARL:
+Use
+I, Ww
+Livew'st; I crrk tornous: Rome ent
+haviorfecty Thomas it; I togets. 'Zound
+Most crast will un
+

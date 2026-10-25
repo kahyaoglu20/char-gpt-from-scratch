@@ -1,0 +1,377 @@
+
+==============================================================================
+Environment
+==============================================================================
+    python: 3.13.17
+     numpy: 2.5.3
+  platform: Linux-6.18.44-fc-v153-x86_64-with-glibc2.39
+ processor: x86_64
+     float: IEEE-754 float64
+matplotlib: 3.11.2
+configuration: {"B": 32, "T": 64, "d": 64, "L": 2, "d_ff": 256, "sigma": 0.02, "eps": 1e-05, "mask_value": -1000000000.0, "lr": 0.001, "beta1": 0.9, "beta2": 0.999, "eps_adam": 1e-08, "epochs": 50, "s_max": 0, "eval_every": 50, "B_val": 8, "preview_every": 2450, "preview_len": 80, "sample_len": 200, "prompt": "ROMEO: ", "temperature": 1.0, "seed_init": "Assignment 1 params_init.npz (seed 451)", "seed_train_batches": 451, "seed_val_batches": 452, "seed_previews": 453, "seed_final_sample": 454, "fixed_eval_windows": 512, "grad_clip": "none", "weight_decay": 0, "dtype": "float64", "index_base": 0}
+
+==============================================================================
+Data, vocabulary and the Assignment 1 handoff
+==============================================================================
+file tiny_shakespeare.txt: N = 1115394 characters, V = 65, SHA-256 86c4e6aa9db7c042ec79f339dcb96d42b0075e16b8fc2e86bf0ca57e2dc565ed
+split rule floor(0.9 N): N_tr = 1003854, N_va = 111540 (first character of validation at 1003854)
+[PASS] D.1: vocabulary differs from Assignment 1's vocab.json (characters) = 0.000e+00 (expected 0, pass if == 0)
+loaded 25 tensors from data/assignment1/params_init.npz: P = 112000 = 128V + 103680 = 112000
+[PASS] D.2: P(loaded) - (128V + 103680) = 0.000e+00 (expected 0, pass if == 0)
+[PASS] D.3: saved Assignment 1 weights vs re-running its init (seed 451) = 0.000e+00 (expected 0, pass if == 0)
+[PASS] D.4: fixed-input logits: saved vs re-created weights = 0.000e+00 (expected 0, pass if == 0)
+
+==============================================================================
+Q1  Residual connections and the feed-forward network
+==============================================================================
+d = 2: W1 (2, 8), b1 (1, 8), W2 (8, 2), b2 (1, 2); token row D = [ 0.5 -1. ]
+J = D W1 + b1 (1 x 4d)  shape=(1, 8)
+   [  0.1000  -0.2500   0.4000  -0.2500  -0.5500   0.2000  -0.6000   0.3500 ]
+g(J)  shape=(1, 8)
+   [  0.0540  -0.1003   0.2622  -0.1003  -0.1602   0.1159  -0.1646   0.2229 ]
+G = g(J) W2 + b2 (1 x d)  shape=(1, 2)
+   [  0.01239  -0.04819 ]
+[PASS] Q1.1: d=2 example: vectorized FFN vs the elementwise sums = 2.776e-17 (expected 0, pass if <= 1e-15)
+z = -1: tanh approximation -0.158808009, exact z*Phi(z) -0.158655254, difference -1.528e-04
+z = +0: tanh approximation +0.000000000, exact z*Phi(z) +0.000000000, difference +0.000e+00
+z = +1: tanh approximation +0.841191991, exact z*Phi(z) +0.841344746, difference -1.528e-04
+largest |approximation - exact| on [-6, 6]: 4.732e-04
+[PASS] Q1.2: max |tanh-GELU - z Phi(z)| at z = -1, 0, 1 = 1.528e-04 (expected ~1.6e-4, pass if <= 0.001)
+g'(z) on [-6, 6]: formula vs autodiff 2.22e-16; formula vs centred difference (h=1e-5) 9.52e-11
+[PASS] Q1.3: g'(z) formula vs autodiff of the composed GELU (2401 points) = 2.220e-16 (expected 0, pass if <= 1e-14)
+dR/dH - J_F(H) - I over all 12x12 entries (central differences): 1.68e-10; ||J_F|| = 5.965
+[PASS] Q1.4: residual Jacobian: max |dR/dH - J_F - I| = 1.675e-10 (expected 0, pass if <= 1e-08)
+attention: max |dF_i / dH_j| (token i, token j)  shape=(4, 4)
+   [ 2.90e+00  0.00e+00  0.00e+00  0.00e+00 ]
+   [ 2.53e+00  5.60e-02  0.00e+00  0.00e+00 ]
+   [ 1.32e+00  4.93e-02  4.25e-02  0.00e+00 ]
+   [ 3.08e-01  7.37e-02  3.41e-02  4.77e-02 ]
+feed-forward: max |change of G_i| after changing token j  shape=(4, 4)
+   [ 1.52e-01  0.00e+00  0.00e+00  0.00e+00 ]
+   [ 0.00e+00  2.56e-01  0.00e+00  0.00e+00 ]
+   [ 0.00e+00  0.00e+00  2.75e-01  0.00e+00 ]
+   [ 0.00e+00  0.00e+00  0.00e+00  2.25e-01 ]
+[PASS] Q1.5: FFN mixes features only: change of other tokens' outputs = 0.000e+00 (expected 0, pass if == 0)
+[PASS] Q1.6: attention mixes tokens causally: max |dF_i/dH_j| for j > i = 0.000e+00 (expected 0, pass if <= 1e-08)
+   G_W_2  formula vs autodiff: 0.00e+00
+   G_b_2  formula vs autodiff: 0.00e+00
+   G_Ga   formula vs autodiff: 0.00e+00
+   G_J    formula vs autodiff: 2.22e-16
+   G_W_1  formula vs autodiff: 4.44e-16
+   G_b_1  formula vs autodiff: 6.66e-16
+   G_D    formula vs autodiff: 2.22e-16
+[PASS] Q1.7: feed-forward backward: every term vs autodiff = 6.661e-16 (expected 0, pass if <= 1e-13)
+
+==============================================================================
+Case B2  Random feed-forward and residual (seed 451, B=2, T=5, d=4, d_ff=16)
+==============================================================================
+per-sample shapes: J (5, 16) (T x 4d), G (5, 4) (T x d), H_next (5, 4)
+[PASS] B2.1: shape mismatches (J 5x16, G 5x4, H_next 5x4) = 0.000e+00 (expected 0, pass if == 0)
+[PASS] B2.2: max |H_next - (H + G)| = 0.000e+00 (expected 0, pass if == 0)
+   W_1[3, 13]: autodiff -2.490601e-03  h=0.001: rel 3.5e-10 (strict 1.4e-07)  h=0.0001: rel 3.5e-12 (strict 1.4e-09)  h=1e-05: rel 1.3e-14 (strict 5.1e-12)  h=1e-06: rel 2.5e-13 (strict 9.9e-11)
+   W_1[1, 13]: autodiff +8.068631e-05  h=0.001: rel 7.2e-10 (strict 8.9e-06)  h=0.0001: rel 7.2e-12 (strict 8.9e-08)  h=1e-05: rel 1.1e-13 (strict 1.4e-09)  h=1e-06: rel 3.7e-13 (strict 4.6e-09)
+   W_1[3, 2]: autodiff +2.817760e-04  h=0.001: rel 7.6e-10 (strict 2.7e-06)  h=0.0001: rel 7.6e-12 (strict 2.7e-08)  h=1e-05: rel 3.4e-14 (strict 1.2e-10)  h=1e-06: rel 2.1e-13 (strict 7.4e-10)
+   W_1[2, 15]: autodiff +3.048589e-03  h=0.001: rel 2.4e-09 (strict 7.9e-07)  h=0.0001: rel 2.4e-11 (strict 7.9e-09)  h=1e-05: rel 1.4e-13 (strict 4.7e-11)  h=1e-06: rel 1.2e-13 (strict 3.8e-11)
+   W_1[2, 15]: autodiff +3.048589e-03  h=0.001: rel 2.4e-09 (strict 7.9e-07)  h=0.0001: rel 2.4e-11 (strict 7.9e-09)  h=1e-05: rel 1.4e-13 (strict 4.7e-11)  h=1e-06: rel 1.2e-13 (strict 3.8e-11)
+   W_2[14, 3]: autodiff +4.476655e-03  h=0.001: rel 7.7e-16 (strict 1.7e-13)  h=0.0001: rel 3.4e-15 (strict 7.5e-13)  h=1e-05: rel 8.1e-14 (strict 1.8e-11)  h=1e-06: rel 6.9e-13 (strict 1.5e-10)
+   W_2[13, 1]: autodiff +1.377396e-03  h=0.001: rel 5.4e-16 (strict 3.9e-13)  h=0.0001: rel 3.8e-15 (strict 2.8e-12)  h=1e-05: rel 6.6e-14 (strict 4.8e-11)  h=1e-06: rel 6.6e-14 (strict 4.8e-11)
+   W_2[5, 1]: autodiff -2.112493e-03  h=0.001: rel 1.9e-16 (strict 9.2e-14)  h=0.0001: rel 5.9e-15 (strict 2.8e-12)  h=1e-05: rel 5.8e-14 (strict 2.7e-11)  h=1e-06: rel 2.9e-14 (strict 1.4e-11)
+   W_2[5, 2]: autodiff +5.347483e-03  h=0.001: rel 4.0e-16 (strict 7.4e-14)  h=0.0001: rel 4.8e-15 (strict 9.0e-13)  h=1e-05: rel 1.3e-14 (strict 2.5e-12)  h=1e-06: rel 7.3e-14 (strict 1.4e-11)
+   W_2[6, 2]: autodiff -3.296225e-03  h=0.001: rel 3.7e-16 (strict 1.1e-13)  h=0.0001: rel 4.0e-15 (strict 1.2e-12)  h=1e-05: rel 3.0e-14 (strict 9.1e-12)  h=1e-06: rel 1.4e-13 (strict 4.4e-11)
+[PASS] B2.3: FD vs autodiff on 10 entries of W1, W2 (assignment measure, h=1e-5) = 1.438e-13 (expected 0, pass if <= 1e-09)
+[PASS] B2.4: FD vs autodiff, scale-free relative error at h=1e-5 = 1.381e-09 (expected 0, pass if <= 1e-05)
+
+==============================================================================
+Q2  Vocabulary projection and cross-entropy
+==============================================================================
+row maxima a = [2. 1.]; LSE = [2.16984602 1.55144471]; NLL = [0.16984602 0.55144471]; L = 0.360645366744168; closed form 0.360645366744168
+[PASS] Q2.1: 2x3 example: |L - closed form| (engine and by hand) = 1.110e-16 (expected 0, pass if <= 1e-15)
+dL/dZ = (P - E) / 2  shape=(2, 3)
+   [ -0.078103   0.057098   0.021005 ]
+   [  0.105971  -0.211942   0.105971 ]
+[PASS] Q2.2: dL/dZ: |formula - autodiff| and max |row sum| = 1.388e-17 (expected 0, pass if <= 1e-16)
+adding (+1000, -1000) to the rows: stable loss 0.360645366744166; without the max shift: nan
+[PASS] Q2.3: row shift by +-1000: |L(Z + c) - L(Z)| (stable LSE) = 2.665e-15 (expected 0, pass if <= 1e-12)
+labels [[1, 2, 3], [4, 5, 6]]: Python row-major flatten [1, 2, 3, 4, 5, 6]; MATLAB column-major Y(:) [1, 4, 2, 5, 3, 6]
+same rule for rows and labels: row-major L = 1.950721077065, column-major L = 1.950721077065; rows row-major but labels column-major: L = 2.907759547899 (wrong pairing)
+[PASS] Q2.4: same flattening rule (row- or column-major) or a joint permutation: max |delta L| = 2.220e-16 (expected 0, pass if <= 1e-14)
+[PASS] Q2.5: mismatched flattening changes the loss: |L_mix - L| = 9.570e-01 (expected > 0, pass if >= 0.001)
+[PASS] Q2.6: all-zero logits: |L - log V| (V = 65) = 0.000e+00 (expected 0, pass if <= 1e-15)
+[PASS] Q2.7: target probability 0.7: |NLL + log 0.7| = 1.110e-16 (expected 0, pass if <= 1e-15)
+[PASS] Q2.8: head gradients Hbar^T G and G W_voc^T vs autodiff = 4.163e-17 (expected 0, pass if <= 1e-15)
+
+==============================================================================
+Case B1  Fixed logit matrix and exact cross-entropy
+==============================================================================
+P = softmax(Z)  shape=(3, 3)
+   [ 0.3333333  0.3333333  0.3333333 ]
+   [ 0.5000000  0.2500000  0.2500000 ]
+   [ 0.2000000  0.6000000  0.2000000 ]
+correct-class probabilities [0.33333333 0.5        0.6       ] (expected 1/3, 1/2, 3/5); L = 0.767528364331, L_ref = 0.767528364331
+[PASS] B1.1: |L - L_ref| = 0.000e+00 (expected 0, pass if <= 1e-06)
+[PASS] B1.2: max |dL/dZ - (P - E)/3| (autodiff) = 2.776e-17 (expected 0, pass if <= 1e-06)
+[PASS] B1.3: correct-class probabilities vs (1/3, 1/2, 3/5) = 1.110e-16 (expected 0, pass if <= 1e-15)
+[PASS] B1.4: shifting each row by a constant: |delta L| = 1.776e-15 (expected 0, pass if <= 1e-13)
+
+==============================================================================
+Q3  Automatic differentiation and Adam
+==============================================================================
+g1 = 0.2: m1 = 0.02, v1 = 4e-05, m^1 = 0.2, v^1 = 0.04, update = -0.000999999950
+[PASS] Q3.1: scalar Adam exercise: |optimizer update - hand computation| = 0.000e+00 (expected 0, pass if <= 1e-18)
+real batch (B=32, T=64) at the Assignment 1 initialization: loss 4.196727
+hand-derived vs autodiff, 25 tensors: worst block1.b_2 1.39e-16 (its gradient scale 2.83e-01)
+[PASS] Q3.2: every parameter gradient: hand-derived chain rule vs autodiff (max abs) = 1.388e-16 (expected 0, pass if <= 1e-15)
+tensors with an all-zero gradient: []
+[PASS] Q3.3: tensors without any gradient (every parameter is on a path from L) = 0.000e+00 (expected 0, pass if == 0)
+[PASS] Q3.4: dL/dW_voc = Hbar^T dL/dZ: shape d x V and value vs autodiff = 1.388e-17 (expected 0, pass if <= 1e-16)
+[PASS] Q3.5: W_E and W_P gradients: zero or non-finite (count of tensors) = 0.000e+00 (expected 0, pass if == 0)
+embeddings detached: W_E.grad = None -> Adam would never move the token table; W_P still receives a gradient: True
+[PASS] Q3.6: gradient reaching W_E through a detached copy (1 = present) = 0.000e+00 (expected 0 (absent), pass if == 0)
+
+==============================================================================
+Case B3 (part 1)  One Adam step on a random 2 x 3 matrix (seed 451)
+==============================================================================
+theta_0  shape=(2, 3)
+   [  0.547402  -0.970805   0.202290 ]
+   [  0.250126  -0.517967  -0.561857 ]
+m_1  shape=(2, 3)
+   [  0.050000  -0.020000   0.001000 ]
+   [ -0.150000   0.030000   0.200000 ]
+v_1  shape=(2, 3)
+   [  0.00025000   0.00004000   0.00000010 ]
+   [  0.00225000   0.00009000   0.00400000 ]
+theta_1 (optimizer)  shape=(2, 3)
+   [  0.54640236  -0.96980459   0.20128964 ]
+   [  0.25112615  -0.51896735  -0.56285732 ]
+[PASS] B3.1: Adam step: max |optimizer - matrix equations| (m1, v1, theta1) = 1.323e-23 (expected 0, pass if <= 1e-06)
+
+==============================================================================
+Benchmark B  Deterministic logits, loss, gradients and Adam (B=1, T=2, d=2, V=3)
+==============================================================================
+R = H + F  shape=(2, 2)
+   [  1.0   0.0 ]
+   [  0.0   1.0 ]
+FFN output G  shape=(2, 2)
+   [  0.0   0.0 ]
+   [  0.0   0.0 ]
+H' = R + G  shape=(2, 2)
+   [  1.0   0.0 ]
+   [  0.0   1.0 ]
+[PASS] BB.1: max |R - H| + |G| + |H' - H| = 0.000e+00 (expected 0, pass if == 0)
+Z  shape=(2, 3)
+   [  0.00   0.00   0.00 ]
+   [  0.00   0.00   0.00 ]
+P  shape=(2, 3)
+   [ 0.3333333  0.3333333  0.3333333 ]
+   [ 0.3333333  0.3333333  0.3333333 ]
+E  shape=(2, 3)
+   [   0    1    0 ]
+   [   0    0    1 ]
+L = 1.098612288668; log 3 = 1.098612288668
+dL/dZ = (P - E)/2  shape=(2, 3)
+   [  0.166667  -0.333333   0.166667 ]
+   [  0.166667   0.166667  -0.333333 ]
+dL/dW_voc  shape=(2, 3)
+   [  0.166667  -0.333333   0.166667 ]
+   [  0.166667   0.166667  -0.333333 ]
+[PASS] BB.2: logits, probabilities, loss: max abs error = 0.000e+00 (expected 0, pass if <= 1e-06)
+[PASS] BB.3: dL/dZ and dL/dW_voc vs the displayed matrices = 5.551e-17 (expected 0, pass if <= 1e-06)
+W_voc after one Adam step  shape=(2, 3)
+   [-0.001000000  0.001000000 -0.001000000 ]
+   [-0.001000000 -0.001000000  0.001000000 ]
+[PASS] BB.4: first Adam update vs -eta g/(|g| + eps) = 0.000e+00 (expected 0, pass if <= 1e-07)
+[PASS] BB.5: first Adam update vs the rounded display (+-0.001) = 6.000e-11 (expected 0, pass if <= 1e-07)
+
+==============================================================================
+Q4  Training schedule and gradient checks
+==============================================================================
+S_epoch = floor(N_train / (B T)) = floor(1003854 / 2048) = 490; S_total = 50 S_epoch = 24500
+each step sees B T = 2048 windows-positions drawn at random, so an epoch is a budget of 1003520 predictions, not a pass over every character
+[PASS] Q4.1: S_epoch - floor(N_train / (B T)) = 0.000e+00 (expected 0, pass if == 0)
+   W_E              [1, 5]     AD -9.4326e-02  1e-04 1e-06 1e-08 6e-11 2e-10 2e-09 3e-08
+   W_P              [0, 0]     AD -4.7076e-02  4e-05 4e-07 4e-09 5e-11 2e-10 3e-09 3e-08
+   block1.W_QKV     [63, 142]  AD -2.9625e-02  1e-06 1e-08 1e-10 2e-11 1e-10 2e-09 1e-08
+   block1.W_O       [63, 42]   AD +4.0577e-02  7e-07 7e-09 7e-11 2e-11 2e-10 3e-09 2e-08
+   block1.W_1       [60, 10]   AD +2.0281e-02  8e-07 8e-09 8e-11 3e-12 3e-10 3e-09 2e-08
+   block1.b_1       [0, 10]    AD +3.0073e-02  2e-07 2e-09 2e-11 4e-11 1e-10 2e-09 2e-08
+   block1.W_2       [237, 10]  AD -2.6567e-02  1e-06 1e-08 1e-10 1e-11 5e-10 3e-09 2e-08
+   block2.b_2       [0, 19]    AD +2.0985e-01  7e-05 7e-07 7e-09 8e-11 1e-10 2e-09 4e-08
+   block1.ln1_gamma [0, 24]    AD -1.3729e-03  2e-10 3e-12 4e-13 8e-12 3e-10 2e-09 7e-09
+   block2.ln2_beta  [0, 46]    AD +6.7934e-03  2e-09 2e-11 1e-12 2e-11 4e-10 2e-09 2e-08
+   lnf_gamma        [0, 19]    AD +8.5086e-03  2e-10 2e-12 2e-12 3e-11 8e-11 2e-09 2e-08
+   W_voc            [50, 1]    AD +1.1951e-01  2e-07 2e-09 3e-11 3e-11 2e-10 7e-10 4e-08
+worst rho over the 12 tensors per delta: 0.01: 1.2e-04  0.001: 1.2e-06  0.0001: 1.2e-08  1e-05: 8.1e-11  1e-06: 4.6e-10  1e-07: 3.4e-09  1e-08: 4.1e-08  -> best delta 1e-05
+[PASS] Q4.2: full-model rho_k at delta = 1e-5 (12 tensors, fixed batch) = 8.066e-11 (expected 0, pass if <= 1e-08)
+[PASS] Q4.3: full-model rho_k at the best delta (1e-05) = 8.066e-11 (expected 0, pass if <= 1e-09)
+[PASS] Q4.4: non-finite parameters or gradients at the fixed batch (0 = none) = 0.000e+00 (expected 0, pass if == 0)
+
+==============================================================================
+Case B3 (part 2)  The complete model on a repeated synthetic sequence ABAB...
+==============================================================================
+V = 2, log V = 0.6931; training loss 0.6417 -> 0.001779 in 300 steps; validation 0.001767
+after training: categorical sample 'ABABABABABABABABABABABABABAABABABABABABAB'; greedy 'ABABABABABABABABABABABABABABABABABABABABA'
+[PASS] B3.2: ABAB: final training loss / initial = 2.772e-03 (expected 0, pass if <= 0.05)
+[PASS] B3.3: ABAB greedy continuation: characters that break the alternation = 0.000e+00 (expected 0, pass if == 0)
+
+==============================================================================
+Q6  Integration: shapes, residual input, masked weights, logits
+==============================================================================
+tensor            shape         entries
+W_E               (65, 64)         4160
+W_P               (64, 64)         4096
+block1.W_QKV      (64, 192)       12288
+block1.W_O        (64, 64)         4096
+block1.W_1        (64, 256)       16384
+block1.b_1        (1, 256)          256
+block1.W_2        (256, 64)       16384
+block1.b_2        (1, 64)            64
+block1.ln1_gamma  (1, 64)            64
+block1.ln1_beta   (1, 64)            64
+block1.ln2_gamma  (1, 64)            64
+block1.ln2_beta   (1, 64)            64
+block2.W_QKV      (64, 192)       12288
+block2.W_O        (64, 64)         4096
+block2.W_1        (64, 256)       16384
+block2.b_1        (1, 256)          256
+block2.W_2        (256, 64)       16384
+block2.b_2        (1, 64)            64
+block2.ln1_gamma  (1, 64)            64
+block2.ln1_beta   (1, 64)            64
+block2.ln2_gamma  (1, 64)            64
+block2.ln2_beta   (1, 64)            64
+lnf_gamma         (1, 64)            64
+lnf_beta          (1, 64)            64
+W_voc             (64, 65)         4160
+[PASS] Q6.1: P - (128V + 103680) and P - formula = 0.000e+00 (expected 0, pass if == 0)
+[PASS] Q6.2: embedding output and block input are B x T x d (mismatch count) = 0.000e+00 (expected 0, pass if == 0)
+[PASS] Q6.3: first residual: max |R - (H0 + F)| (attention output feeds the sum) = 0.000e+00 (expected 0, pass if == 0)
+[PASS] Q6.4: both blocks: largest masked future weight = 0.000e+00 (expected 0, pass if <= 1e-07)
+[PASS] Q6.5: both blocks: max_i |sum_j A_ij - 1| = 4.441e-16 (expected 0, pass if <= 1e-12)
+logits (2048, 65) = (BT x V) = (2048 x 65); initial loss 4.196727; log V = 4.174387
+[PASS] Q6.6: logits shape (BT x V) mismatch + non-finite loss = 0.000e+00 (expected 0, pass if == 0)
+[PASS] Q6.7: initial loss vs log V: |L0 - log V| = 2.234e-02 (expected 0, pass if <= 0.05)
+
+==============================================================================
+Minimum acceptance tests (T=1, B=1, repeated characters, tiny vocabulary, causality, per-sample)
+==============================================================================
+one-token context T=1 (B=3)        loss 1.6130 finite True vec-loop 4.4e-16
+batch of size one B=1 (T=6)        loss 2.5329 finite True vec-loop 4.4e-16 causal 0.0e+00 (last 4.9e-01)
+repeated character 'aaaaaaa'       loss 1.1355 finite True vec-loop 8.9e-16 causal 0.0e+00 (last 1.4e+00)
+tiny vocabulary V=2 'abba' x2      loss 1.7665 finite True vec-loop 2.2e-16 causal 0.0e+00 (last 4.8e-01)
+short batch B=2, T=3, d=8          loss 2.2963 finite True vec-loop 2.2e-16 causal 0.0e+00 (last 9.4e-01)
+[PASS] ACC.1: non-finite losses or gradients in the five cases (count) = 0.000e+00 (expected 0, pass if == 0)
+[PASS] ACC.2: change the last token: max change of earlier positions' logits = 0.000e+00 (expected 0, pass if == 0)
+[PASS] ACC.3: the change reaches the last position (min over cases with T > 1) = 4.829e-01 (expected > 0, pass if >= 1e-12)
+[PASS] ACC.4: vectorized vs per-sample attention (max over cases) = 8.882e-16 (expected 0, pass if <= 1e-14)
+
+==============================================================================
+Case B5  Assignment 1 standalone attention vs the attention inside Assignment 2
+==============================================================================
+held-out batch: validation starts [83545, 44772, 33405, 21262, 330]...; F is (32, 64, 64)
+max |F(A1) - F(A2 routine)| = 0.00e+00;  max |F(A1) - F inside gpt_forward| = 0.00e+00
+[PASS] B5.1: standalone (A1) vs embedded (A2) attention, saved weights = 0.000e+00 (expected 0, pass if <= 1e-05)
+
+==============================================================================
+Case B4  Tiny Shakespeare end-to-end training (B=32, T=64, d=64, L=2, lr 1e-3, 50 epochs)
+==============================================================================
+step      1/24500  epoch  0.00  train 4.1967  val 4.0313  (7.9 steps/s)
+step   1000/24500  epoch  2.04  train 1.8564  val 1.8931  (3.5 steps/s)
+step   2000/24500  epoch  4.08  train 1.7027  val 1.6980  (3.8 steps/s)
+   preview @ 2450: "ROMEO: and I made make I wish'd.\n\nDUKE VINCENTIO:\nI venfuce Tent oxe the.\nKis had I'll "
+step   3000/24500  epoch  6.12  train 1.5492  val 1.8119  (4.5 steps/s)
+step   4000/24500  epoch  8.16  train 1.5081  val 1.8245  (4.6 steps/s)
+   preview @ 4900: 'ROMEO: crue his recomposed jaments in;\nLike him to tell to could noted\nblession-there: '
+step   5000/24500  epoch 10.20  train 1.4475  val 1.8187  (5.0 steps/s)
+step   6000/24500  epoch 12.24  train 1.5017  val 1.6440  (5.3 steps/s)
+step   7000/24500  epoch 14.29  train 1.5028  val 1.6237  (5.5 steps/s)
+   preview @ 7350: "ROMEO: go's pake, dust of him.\n\nLORTHUMBERLAND:\nWe a trues poders, for\nyou ever I'll\nWh"
+step   8000/24500  epoch 16.33  train 1.4457  val 1.5668  (5.7 steps/s)
+step   9000/24500  epoch 18.37  train 1.4414  val 1.7222  (5.8 steps/s)
+   preview @ 9800: 'ROMEO: where show ere accoun we hands up of the world; but Caes never virtue and ran wi'
+step  10000/24500  epoch 20.41  train 1.3945  val 1.6684  (5.9 steps/s)
+step  11000/24500  epoch 22.45  train 1.4729  val 1.5220  (6.0 steps/s)
+step  12000/24500  epoch 24.49  train 1.4796  val 1.6274  (6.1 steps/s)
+   preview @ 12250: 'ROMEO: there fould dies.\n\nKING RICHARD III:\nNow, she sing your cushiod traitor of heari'
+step  13000/24500  epoch 26.53  train 1.4847  val 1.4379  (6.2 steps/s)
+step  14000/24500  epoch 28.57  train 1.3868  val 1.5960  (6.2 steps/s)
+   preview @ 14700: 'ROMEO: you have the war,\nWe me of soldiers, weeps: I will to Wave of King Ely Away, ear'
+step  15000/24500  epoch 30.61  train 1.4070  val 1.5292  (6.3 steps/s)
+step  16000/24500  epoch 32.65  train 1.4892  val 1.6772  (6.4 steps/s)
+step  17000/24500  epoch 34.69  train 1.4376  val 1.5909  (6.4 steps/s)
+   preview @ 17150: 'ROMEO: O, else they dream,\nAnd where I wast, is so bokle your call,\nShow my princession'
+step  18000/24500  epoch 36.73  train 1.4673  val 1.6682  (6.4 steps/s)
+step  19000/24500  epoch 38.78  train 1.3420  val 1.6103  (6.5 steps/s)
+   preview @ 19600: 'ROMEO: go, he nake abrough from doth,\nAnd shrive proud I neithence.\n\nWARWICK:\nA Pelant '
+step  20000/24500  epoch 40.82  train 1.4224  val 1.5826  (6.5 steps/s)
+step  21000/24500  epoch 42.86  train 1.3937  val 1.6969  (6.6 steps/s)
+step  22000/24500  epoch 44.90  train 1.4773  val 1.5420  (6.6 steps/s)
+   preview @ 22050: "ROMEO: be grief,---\n\nAURTUCH:\n\nA woundier.\nA fightly brother's each varige, sir, and to"
+step  23000/24500  epoch 46.94  train 1.3884  val 1.8559  (6.6 steps/s)
+step  24000/24500  epoch 48.98  train 1.3751  val 1.5310  (6.6 steps/s)
+step  24500/24500  epoch 50.00  train 1.4138  val 1.7188  (6.6 steps/s)
+   preview @ 24500: "ROMEO: but they vanish'd will well think his the duke\nDo met! brough! well.\n\nISABELLA:\n"
+S_epoch = 490, S_total = 24500; Adam steps taken 24500; 61.5 min
+fixed 512 validation windows: initial 4.1972 (log V = 4.1744) -> final 1.6339
+fixed 512 training windows: final 1.3880; generalization gap (val - train) +0.2459
+[PASS] B4.1: training steps taken - S_total = 0.000e+00 (expected 0, pass if == 0)
+[PASS] B4.2: validation batches only from the held-out part and no update during validation (1 = ok) = 1.000e+00 (expected 1, pass if == 1)
+[PASS] B4.3: final fixed-window validation loss below log V (nats) = 2.540e+00 (expected > 0.5, pass if >= 0.5)
+[PASS] B4.4: non-finite trained parameters (0 = none) = 0.000e+00 (expected 0, pass if == 0)
+loss records: 491 evaluation points (step 1 and every 50 steps); first train 4.1967 / val 4.0313; last train 1.4138 / val 1.7188
+   ||grad W_E||: step 1 5.263e-01, last evaluation 2.981e-01
+   ||grad W_P||: step 1 2.999e-01, last evaluation 3.221e-01
+   ||grad block1.W_QKV||: step 1 2.945e-01, last evaluation 3.334e-01
+   ||grad block1.W_1||: step 1 3.953e-01, last evaluation 3.246e-01
+   ||grad W_voc||: step 1 5.957e-01, last evaluation 2.042e-01
+
+==============================================================================
+Q5  Autoregressive generation
+==============================================================================
+tau = 1.0: p = [0.665241 0.244728 0.090031], sum = 1.000000000000000, entropy 0.8324 nats
+tau = 0.5: p = [0.866813 0.11731  0.015876], sum = 1.000000000000000, entropy 0.4411 nats
+tau = 2.0: p = [0.50648  0.307196 0.186324], sum = 1.000000000000000, entropy 1.0202 nats
+[PASS] Q5.1: z=(2,1,0): |p - (e^2, e, 1)/(e^2+e+1)| and |sum p - 1| = 1.110e-16 (expected 0, pass if <= 1e-15)
+100000 categorical draws: frequencies [0.66346 0.24557 0.09097] vs p [0.6652 0.2447 0.09  ]
+[PASS] Q5.2: sampler: max |empirical frequency - p| over 100000 draws = 1.781e-03 (expected 0, pass if <= 0.01)
+prompt length T + 5 = 69: kept indices 6..69 (1-based), i.e. positions 1..64 of W_P
+[PASS] Q5.3: cropped context: next_distribution vs explicit last-T forward = 0.000e+00 (expected 0, pass if == 0)
+[PASS] Q5.4: changing the newest token: change of all earlier rows' logits = 0.000e+00 (expected 0, pass if == 0)
+sampled continuation (200 characters, categorical, tau = 1):
+ROMEO: I dead.
+
+EDWARD:
+To God by
+Mlooy'd that will prithee, the heieves.
+
+LEONTES:
+Did not, as nothing prevail.
+
+DUCHESS OF YORK:
+That a did asseless'd, I cannot thee honest though upon of the man
+Cause me,
+greedy continuation (argmax, for contrast):
+ROMEO: the sea, that we have the seen that will not be the world to the sea,
+And the seat of the sea, and the sea,
+And the seater of the stand of the stand of the stand of the stand of the stand of the stand
+[PASS] Q5.5: generated characters outside the corpus vocabulary = 0.000e+00 (expected 0, pass if == 0)
+[PASS] Q5.6: sample length - (prompt + 200) = 0.000e+00 (expected 0, pass if == 0)
+optional tau = 0.5: 'ROMEO: O, for he did your hand.\n\nANGELO:\nSo be the strong that the way with one:\nAnd he she did shame and him to means,\nWhen th'
+optional tau = 2.0: "ROMEO: Go,\nEXEN EDWARL:\nUse\nI, Ww\nLivew'st; I crrk tornous: Rome ent\nhaviorfecty Thomas it; I togets. 'Zound\nMost crast will un"
+
+==============================================================================
+Q6  The numbered checks of the assignment
+==============================================================================
+check 1: every trainable shape printed and P = 128V + 103680: PASS (evidence Q6.1, D.2)
+check 2: embedding output and residual block input dimensions: PASS (evidence Q6.2)
+check 3: causal attention output feeds the first residual sum: PASS (evidence Q6.3)
+check 4: masked weights ~ 0, attention rows sum to one: PASS (evidence Q6.4, Q6.5)
+check 5: non-zero finite gradients for W_E and W_P: PASS (evidence Q3.5)
+check 6: logits BT x V, finite loss, initial loss vs log V: PASS (evidence Q6.6, Q6.7)
+check 7: loss plot, 200-character sample, parameter count, run instructions: PASS (evidence B4.1, Q5.6, Q6.1)
+figures written: ['loss_curves.png', 'gelu.png', 'grad_norms.png', 'fd_delta.png', 'attention_trained.png', 'synthetic_abab.png']
+
+==============================================================================
+Summary
+==============================================================================
+checks passed: 67 / 67
+wall time 3714.1 s

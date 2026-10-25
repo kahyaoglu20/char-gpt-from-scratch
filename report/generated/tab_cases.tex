@@ -1,0 +1,5 @@
+B1 & pass & fixed logits, exact cross-entropy & 3 x 3 & L = (log 3 + log 2 + log 5/3)/3; dL/dZ = (P-E)/3 & \code{B1.1} \ensuremath{0}, \code{B1.2} \ensuremath{2.8\times10^{-17}} \\
+B2 & pass & random FFN and residual & B=2, T=5, d=4, d\_ff=16 & H\_next = H + G; FD = autodiff & \code{B2.1} \ensuremath{0}, \code{B2.2} \ensuremath{0}, \code{B2.3} \ensuremath{1.4\times10^{-13}} \\
+B3 & pass & Adam step and synthetic training & 2 x 3; V = 2 & matrix equations = optimizer; loss -> 0 & \code{B3.1} \ensuremath{1.3\times10^{-23}}, \code{B3.2} \ensuremath{2.8\times10^{-3}}, \code{B3.3} \ensuremath{0} \\
+B4 & pass & Tiny Shakespeare end to end & B=32, T=64, d=64, L=2 & val loss well below log V; held-out only & \code{B4.1} \ensuremath{0}, \code{B4.2} \ensuremath{1}, \code{B4.3} \ensuremath{2.54}, \code{B4.4} \ensuremath{0} \\
+B5 & pass & A1 vs A2 attention & 32 x 64 x 64 & max |F1 - F2| < 1e-5 & \code{B5.1} \ensuremath{0} \\

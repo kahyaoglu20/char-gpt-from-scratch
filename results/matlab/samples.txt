@@ -1,0 +1,12 @@
+prompt: 'ROMEO: '
+
+[categorical sampling, tau = 1, 200 characters]
+ROMEO: power to Prince?
+Why should my mistress deight sir,
+And yet put myself this packlings
+Return music that I had speak.
+What more than an well make: thou queen,
+I cannot you keep'd him does, no, break-no
+
+[greedy, for contrast]
+ROMEO: the sent the seal the court to the see the sent of the sent the sent of the sent the sent of the sent the sent of the sent the sent of the sent the sent of the sent the sent of the sent the sent of th

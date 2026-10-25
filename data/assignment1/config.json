@@ -1,0 +1,16 @@
+{
+  "B": 32,
+  "T": 64,
+  "d": 64,
+  "L": 2,
+  "sigma": 0.02,
+  "eps": 1e-05,
+  "mask_value": -1000000000.0,
+  "train_fraction": "floor(0.9 N)",
+  "seed": 451,
+  "dtype": "float64",
+  "index_base": 0,
+  "V": 65,
+  "N": 1115394,
+  "P": 112000
+}
